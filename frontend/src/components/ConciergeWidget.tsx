@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { RetellWebClient } from 'retell-client-js-sdk'
 import type {
   AddedLuggageItem,
@@ -47,6 +47,11 @@ interface ConciergeState {
   pendingConfirmation: PendingConfirmation | null
   addedItems: AddedLuggageItem[]
   escalation: EscalationInfo | null
+  // Which chat message the option-grid/confirm/boarding-pass block should
+  // render directly under — otherwise it's a single fixed block placed
+  // after the whole message list, so anything typed later still visually
+  // renders above it instead of after it.
+  anchorMessageId: string | null
 }
 
 function applyToolResult(state: ConciergeState, tr: ToolResult): ConciergeState {
@@ -147,11 +152,15 @@ export default function ConciergeWidget() {
     pendingConfirmation: null,
     addedItems: [],
     escalation: null,
+    anchorMessageId: null,
   })
 
-  const applyResults = (results: ToolResult[] | undefined) => {
+  const applyResults = (results: ToolResult[] | undefined, anchorMessageId?: string) => {
     if (!results?.length) return
-    setState((prev) => results.reduce(applyToolResult, prev))
+    setState((prev) => {
+      const next = results.reduce(applyToolResult, prev)
+      return anchorMessageId ? { ...next, anchorMessageId } : next
+    })
   }
 
   // Idle-scroll hint on the collapsed dock, per the concierge-dock spec —
@@ -199,8 +208,9 @@ export default function ConciergeWidget() {
     sendMessage('Hi')
       .then((res) => {
         sessionId.current = res.session_id
-        setMessages([{ id: uid(), role: 'assistant', text: res.reply }])
-        applyResults(res.tool_results)
+        const assistantId = uid()
+        setMessages([{ id: assistantId, role: 'assistant', text: res.reply }])
+        applyResults(res.tool_results, assistantId)
       })
       .catch(() => setError('Sorry, I could not connect. Please make sure the chat service is running.'))
       .finally(() => setLoading(false))
@@ -218,8 +228,9 @@ export default function ConciergeWidget() {
     try {
       const res = await sendMessage(text)
       sessionId.current = res.session_id
-      setMessages((prev) => [...prev, { id: uid(), role: 'assistant', text: res.reply }])
-      applyResults(res.tool_results)
+      const assistantId = uid()
+      setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', text: res.reply }])
+      applyResults(res.tool_results, assistantId)
     } catch {
       setError('Sorry, something went wrong sending that. Please try again.')
     } finally {
@@ -425,9 +436,19 @@ export default function ConciergeWidget() {
               <div className="chat-view">
                 <div className="chat-stream" ref={scrollRef}>
                   {messages.map((m) => (
-                    <div key={m.id} className={`concierge-row ${m.role}`}>
-                      <div className={`concierge-bubble ${m.role}`}>{m.text}</div>
-                    </div>
+                    <Fragment key={m.id}>
+                      <div className={`concierge-row ${m.role}`}>
+                        <div className={`concierge-bubble ${m.role}`}>{m.text}</div>
+                      </div>
+                      {hasConciergeContent && state.anchorMessageId === m.id && (
+                        <ConciergeContent
+                          state={state}
+                          onAdd={handleAddOption}
+                          onConfirm={handleConfirm}
+                          onCancel={handleCancelPending}
+                        />
+                      )}
+                    </Fragment>
                   ))}
                   {loading && (
                     <div className="concierge-row assistant">
@@ -437,14 +458,6 @@ export default function ConciergeWidget() {
                         <span className="dot" />
                       </div>
                     </div>
-                  )}
-                  {hasConciergeContent && (
-                    <ConciergeContent
-                      state={state}
-                      onAdd={handleAddOption}
-                      onConfirm={handleConfirm}
-                      onCancel={handleCancelPending}
-                    />
                   )}
                   {error && <div className="concierge-error">{error}</div>}
                 </div>
