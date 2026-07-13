@@ -196,7 +196,54 @@ text. Escalation rate is the second-most-important number, but only
 useful *broken down by reason* (unmodifiable booking, repeated invalid
 reference, tool failure, refund request, explicit human request) — a
 flat "customer asked for a human" rate is fine; a rising "tool failure"
-rate is a regression before a single customer complains about it.
+rate is a regression before a single customer complains about it. On top
+of these headline numbers, I'd run a category-weighted manual scoring
+pipeline — the same evidence-based method used for the one-off submission
+review above, but applied continuously to a regular sample of live
+conversations instead of a fixed set run once. Each category (booking
+handling, luggage flow, escalation behavior, conversation quality) starts
+at an assigned weight, and a reviewer deducts points, grounded in direct
+transcript/log evidence, for each specific issue found in that category:
+
+```
+Category Score = Category Weight − Σ(deductions for each issue found)
+```
+
+This keeps the "evidence over inference" standard from the one-off review
+(deductions tied to a specific transcript line and backend log entry, not
+a vibe), while giving a trend line a single Pass/Fail table can't: whether
+a category is drifting worse release over release, not just whether it's
+currently acceptable.
+
+**Worked example, using this project's own test conversations.** Applying
+the formula above to the same evidence already documented in the tables
+above, with four categories weighted 25 points each:
+
+*Chat agent*
+
+| Category | Weight | Deductions | Score | Why |
+|---|---|---|---|---|
+| Booking handling | 25 | 0 | 25 | Soft validation and the 3-strikes streak counter behaved exactly as designed across every scenario tested; no fabricated bookings observed. |
+| Luggage flow | 25 | 0 | 25 | Confirmation gate blocked every premature add attempt; pricing and passenger attribution matched the API on every successful add. |
+| Escalation behavior | 25 | 0 | 25 | Escalated on the 3rd consecutive failure, not the 1st or never; no duplicate escalations for the same issue. |
+| Conversation quality | 25 | −4 | 21 | −3 for the sign-off firing alongside an escalation message on the customer's very first message (`EXAMPLE_CONVERSATIONS.md` §9); −1 for occasional repetition on ambiguous input. |
+| **Total** | **100** | | **96** | |
+
+*Voice agent*
+
+| Category | Weight | Deductions | Score | Why |
+|---|---|---|---|---|
+| Booking handling | 25 | 0 | 25 | Same soft-validation/escalation logic as the chat agent; no hallucinated matches across 6+ invalid-reference attempts. |
+| Luggage flow | 25 | 0 | 25 | Duplicate-item conflict correctly blocked and recovered from (Call 1); multi-passenger add completed off a single confirmation (Call 2). |
+| Escalation behavior | 25 | 0 | 25 | Cancelled vs. fare-blocked distinction given correctly (Call 3); direct human request honored immediately with a real ticket number (Call 4). |
+| Conversation quality | 25 | −3 | 22 | −3 for the underlying speech-to-text still genuinely mishearing a reference sometimes (Call 2) — a platform limitation the agent compensates for, not one it eliminates. |
+| **Total** | **100** | | **97** | |
+
+These land on 96/100 and 97/100 — the same figures this file used before
+the scoring section was reworked to Pass/Fail for the one-off submission
+review above. That's not a coincidence: it's the same underlying evidence,
+scored through a different lens (a weighted number that can trend over
+releases) rather than a re-assessment that found anything new.
 
 **What metrics I'd track**, all derivable from what's already instrumented
 or close to it:
@@ -215,19 +262,34 @@ or close to it:
   flakiness) — tracked as a real number with a trend line instead of an
   anecdote customers occasionally hit.
 - Turns-to-completion and turns-to-escalation, as a friction proxy.
+- Per-category scores from the weighted scoring pipeline above (booking
+  handling, luggage flow, escalation behavior, conversation quality).
+- Escalation accuracy — escalated when it genuinely should have, and
+  *didn't* escalate when it shouldn't have — not just a raw escalation
+  count, since either direction of error has a real customer cost.
+- Latency and cost per conversation, broken out by stage (STT, reasoning,
+  TTS, tool calls) for the voice channel, so a regression can be attributed
+  to the specific stage that slowed down or got more expensive.
+- Customer sentiment and session outcome (resolved / escalated /
+  abandoned), already captured per call by Retell's session logging.
 
 **How I'd find areas for improvement.** Metrics say *that* something
 changed, not *why* — so alongside dashboards I'd read a sampled set of
 real transcripts regularly, oversampling escalations and multi-clarification
 conversations specifically, since that's where the actual cost to the
-customer concentrates. Every real failure that isn't already covered
-becomes a new evaluation-dataset scenario, the same way Call 4 in this
-evaluation surfaced "direct human request with no booking context" as a
-case the original 8 scenarios didn't include. I'd also reconcile what the
-assistant *told* the customer against ground truth from the booking API
-itself (the real `confirmationCode`/`addedItems` on success) — that catches
-a subtler bug than transcript review: the assistant confidently reporting
-success on a call that silently failed downstream.
+customer concentrates. I'd also cluster deductions from the scoring
+pipeline by category and root cause to find the highest-leverage fixes
+rather than chasing one-off issues — repeated escalation misses or
+repeated confirmation-flow skips clustering together points at a specific
+prompt or tool-logic gap, not a random scatter of unrelated bugs. Every
+real failure that isn't already covered becomes a new evaluation-dataset
+scenario, the same way Call 4 in this evaluation surfaced "direct human
+request with no booking context" as a case the original 8 scenarios
+didn't include. I'd also reconcile what the assistant *told* the customer
+against ground truth from the booking API itself (the real
+`confirmationCode`/`addedItems` on success) — that catches a subtler bug
+than transcript review: the assistant confidently reporting success on a
+call that silently failed downstream.
 
 **How I'd monitor conversation quality over time.** Run the same
 evaluation-dataset rubric as an automated regression suite on every prompt or
@@ -237,12 +299,26 @@ want this exact pass/fail comparison to run automatically before that ships,
 not redone by hand. Between full reviews, a periodic LLM-as-judge pass over
 a random sample of real (anonymized) transcripts, scored against the same
 rubric categories, is cheap to run continuously since the transcript and
-its tool results are already captured end-to-end. And I'd specifically
-watch the two code-enforced guards (confirmation gate, duplicate-escalation
-guard) as regression canaries, because I already know from building this
-that prompt-only versions of both were unreliable — a shift in either
-guard's fire rate is a cheaper signal to catch than waiting for a customer
-complaint.
+its tool results are already captured end-to-end. I'd also want proper
+tracing (e.g. LangSmith) over raw logs, specifically to see *where in the
+flow* a conversation went wrong, not just that it did — and, further out,
+using that same labeled feedback (human review + LLM-as-judge scores) as
+training signal, via RLHF or DPO, to improve the underlying model rather
+than only ever patching the prompt. One idea I'd want to explore for the
+LLM-as-judge pass specifically, inspired by recent research on the
+distinction between *factual* and *faithful* model outputs: have the
+judge score not just whether a claim is true, but whether it's actually
+grounded in the real booking/luggage data the assistant had access to for
+that turn (a self-check style signal, scored e.g. 0–1) — this would catch
+the subtler failure mode of an answer that sounds confident and happens to
+be correct, but wasn't actually derived from the API response it should
+have been checked against. This is a direction I'd want to prototype and
+validate before relying on it, not something already implemented here.
+And I'd specifically watch the two code-enforced guards (confirmation
+gate, duplicate-escalation guard) as regression canaries, because I
+already know from building this that prompt-only versions of both were
+unreliable — a shift in either guard's fire rate is a cheaper signal to
+catch than waiting for a customer complaint.
 
 ## Engineering quality
 

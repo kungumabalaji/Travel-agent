@@ -1,36 +1,4 @@
-"""
-main.py
-=======
-Voice agent service for the Retell AI phone agent. The agent itself
-(prompt, LLM, and phone number) is already configured in the Retell
-dashboard. This service does two things:
 
-1. POST /create-web-call — mints a short-lived Retell web-call access token
-   so the browser (frontend/src/components/VoiceWidget.tsx, via
-   retell-client-js-sdk) can start an in-browser voice call with the agent,
-   the same way you'd dial the attached phone number.
-2. POST /webhook — receives call-lifecycle events Retell POSTs after a call
-   (call_started, call_ended, call_analyzed) so we can log transcripts.
-3. POST /functions — a single Custom Function webhook, dispatched by the
-   `name` field Retell sends, backed by luggage_api.py (the same real
-   loveholidays API ../chatagent/tool.py uses). Register all four
-   functions in the dashboard (Functions > + Add > Custom Function),
-   each pointing at this same URL — the `name` field disambiguates which
-   one Retell means. See FUNCTION_SCHEMAS below for the exact parameter
-   JSON schema to paste into each function's dashboard config.
-
-Point Retell's webhook URL (Dashboard > Agent > Webhook) and each Custom
-Function's URL at:
-    https://<your-public-url>/webhook
-    https://<your-public-url>/functions
-(use ngrok or similar to expose localhost during development, since Retell
-needs to reach this server over the internet — /create-web-call doesn't
-need this, only /webhook and /functions do)
-
-Run (either works):
-    uvicorn main:app --reload --port 8002
-    python main.py
-"""
 
 import asyncio
 import json
