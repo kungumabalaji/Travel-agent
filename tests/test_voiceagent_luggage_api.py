@@ -108,6 +108,7 @@ def test_add_luggage_confirmed_after_gap_succeeds():
             result = luggage_api.add_luggage(call_id, "LH123456", "ANC-BAG20::PAX-1002", confirmed=True)
 
     mock_post.assert_called_once()
-    assert result == {"bookingReference": "LH123456"}
+    # option_id is echoed back on success — same reasoning as chatagent/tool.py.
+    assert result == {"bookingReference": "LH123456", "option_id": "ANC-BAG20::PAX-1002"}
 
     luggage_api.cleanup_call(call_id)

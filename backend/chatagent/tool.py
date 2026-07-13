@@ -470,6 +470,10 @@ def add_luggage(
     if status >= 400:
         return {"success": False, "error": f"Booking service returned an unexpected error (status {status})."}
 
+    # Echo the option_id back on success so a UI can remove exactly this
+    # option from whatever "still available" list it's showing, instead of
+    # trying to infer which one just got added from name/passenger matching.
+    body["option_id"] = selected_option_id
     return body
 
 

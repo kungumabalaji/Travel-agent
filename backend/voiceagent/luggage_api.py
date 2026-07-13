@@ -379,6 +379,8 @@ def add_luggage(
     if status >= 400:
         return {"success": False, "error": f"Booking service returned an unexpected error (status {status})."}
 
+    # Echo the option_id back on success — same reasoning as chatagent/tool.py.
+    body["option_id"] = selected_option_id
     return body
 
 

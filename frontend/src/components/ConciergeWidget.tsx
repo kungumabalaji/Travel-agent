@@ -89,6 +89,9 @@ function applyToolResult(state: ConciergeState, tr: ToolResult): ConciergeState 
           ...state,
           pendingConfirmation: null,
           addedItems: [...state.addedItems, ...(r.addedItems ?? [])],
+          // Drop the option that was just added — otherwise it keeps showing
+          // as "still available" even though it's now on the booking.
+          luggageOptions: state.luggageOptions.filter((o) => o.option_id !== r.option_id),
         }
       }
       if (r.remaining_options) {

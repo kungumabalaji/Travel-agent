@@ -186,7 +186,9 @@ def test_add_luggage_confirmed_in_a_later_turn_succeeds():
         result = tool.add_luggage("LH123456", "ANC-BAG20::PAX-1001", ctx, confirmed=True)
 
     mock_post.assert_called_once()
-    assert result == {"bookingReference": "LH123456"}
+    # option_id is echoed back on success so a UI can remove exactly this
+    # option from a "still available" list without guessing.
+    assert result == {"bookingReference": "LH123456", "option_id": "ANC-BAG20::PAX-1001"}
 
 
 def test_add_luggage_offer_is_consumed_after_a_real_attempt():
