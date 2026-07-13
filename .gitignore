@@ -34,5 +34,5 @@ logs/
 # run_all.sh runtime state
 backend/.run_all.pids
 
-# Claude Code local config (machine-specific, not part of the submission)
+# Local development tool configuration
 .claude/
