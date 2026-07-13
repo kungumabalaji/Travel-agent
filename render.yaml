@@ -1,0 +1,36 @@
+# Render Blueprint — deploys both backend services with permanent URLs.
+#
+# Setup: Render dashboard -> New -> Blueprint -> connect this repo -> Render
+# reads this file and creates both services below. You'll be prompted to
+# fill in the env vars marked `sync: false` (they're not stored in this
+# file, since it's committed to the repo).
+#
+# Once deployed, take the voiceagent's URL (https://<name>.onrender.com)
+# and paste it into the Retell dashboard as both the Webhook URL
+# (<url>/webhook) and each Custom Function's URL (<url>/functions) — see
+# the root README's "Voice agent dashboard config" section.
+
+services:
+  - type: web
+    name: loveholidays-chatagent
+    runtime: python
+    plan: free
+    rootDir: backend/chatagent
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+
+  - type: web
+    name: loveholidays-voiceagent
+    runtime: python
+    plan: free
+    rootDir: backend/voiceagent
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: RETELL_API_KEY
+        sync: false
+      - key: RETELL_AGENT_ID
+        sync: false

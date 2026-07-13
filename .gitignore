@@ -1,0 +1,38 @@
+# Secrets
+.env
+.env.local
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# run_all.sh runtime state
+backend/.run_all.pids
+
+# Claude Code local config (machine-specific, not part of the submission)
+.claude/

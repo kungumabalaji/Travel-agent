@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+httpx
+requests
+pydantic
+retell-sdk
+python-dotenv
