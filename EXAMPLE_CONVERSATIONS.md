@@ -115,7 +115,7 @@ refs, priced item) that the chat agent's tools also produce.
 
 ## 5. Live voice call — duplicate item blocked, then recovered
 
-**Booking:** LH123456. Real call, evaluated against the golden dataset
+**Booking:** LH123456. Real call, evaluated against the evaluation dataset
 (see `EVALUATION.md`). Asked for a 20kg bag for Emma, which had already
 been added earlier — the system correctly blocked the duplicate instead of
 silently double-adding it, then the agent recovered by offering what was
@@ -153,7 +153,7 @@ passengers added off a single confirmation.
 
 **Bookings touched:** LH123456 (success), LH000111 (cancelled), LH777888
 (fare-blocked), plus several invalid references. Real call, deliberately
-run long to stack multiple golden-dataset scenarios into one recording —
+run long to stack multiple evaluation-dataset scenarios into one recording —
 the primary "escalation" example, since it demonstrates escalation for
 three distinct, valid reasons in a single call.
 
@@ -178,3 +178,17 @@ want a human.
 |---|---|
 | Vague opening | Customer said "For me, do it" with no context — agent asked for a booking reference first rather than guessing intent |
 | Direct escalation request | *"Can I speak to a human agent?"* → *"I've passed this over to a human agent now, and your support ticket number is ESC-32E74765"* — honored immediately, with a real ticket number rather than a vague promise |
+
+## 9. Sign-off firing alongside escalation (known bug — see EVALUATION.md)
+
+> **Customer:** my booking reference is LH000111
+>
+> **Assistant:** I've found your booking, but it cannot be changed automatically.
+> I'll need to hand this over to a human agent so they can help you further.
+> Please keep your booking reference ready. You're welcome! Enjoy your
+> holiday with loveholidays!
+
+This is a known bug being tracked, not an example of correct behavior: the
+closing sign-off ("You're welcome! Enjoy your holiday...") fires in the
+same reply as the escalation message, on the customer's very first
+message, before they've said thanks or indicated they're done.

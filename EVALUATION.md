@@ -2,7 +2,7 @@
 
 Self-assessment against the exercise's core goal: help a customer add
 luggage to an existing booking, safely, across both text and voice. Two
-parts: a scored evaluation run against a golden dataset of scenarios I
+parts: a pass/fail evaluation run against an evaluation dataset of scenarios I
 defined (below), and a feature-by-feature self-assessment.
 
 ## Conversational design
@@ -14,7 +14,7 @@ with one real wrinkle I'm not going to gloss over. The persona rules in
 a time, a loveholidays-branded sign-off ("You're welcome! Enjoy your
 holiday with loveholidays!") instead of a generic "have a smooth flight"
 line. The voice transcripts show it holding up under real disfluency —
-self-correcting mid-sentence, mishearing a reference and asking to confirm
+self-correcting mid-sentence, mishearing a reference and asking to confirm      
 rather than guessing. The wrinkle: during testing I saw the closing
 sign-off fire in the *same reply* as an unrelated escalation message,
 before the customer had actually said thanks or indicated they were done —
@@ -60,30 +60,42 @@ follows the same pattern — the assistant explains the actual reason and
 offers the real remaining options, rather than a generic "something went
 wrong."
 
-## Scored evaluation (golden dataset)
+## Pass/fail evaluation (evaluation dataset)
 
-I defined a golden dataset of real customer scenarios per channel — the
+I defined an evaluation dataset of real customer scenarios per channel — the
 happy path, multi-passenger additions, cancelled/fare-restricted bookings,
 invalid or missing references, guardrail cases (privacy, out-of-scope
 requests), and mid-conversation corrections — then ran each as a live
-conversation against the deployed API and scored the result against a
-100-point rubric. For every scenario, the customer-facing reply was
-cross-checked against the actual backend tool-call log for that turn, not
-just read for plausibility — a reply is only marked correct if it matches
-what the API genuinely returned.
+conversation against the deployed API and checked the result against a
+pass/fail rubric per category. For every scenario, the customer-facing
+reply was cross-checked against the actual backend tool-call log for that
+turn, not just read for plausibility — a reply is only marked a pass if it
+matches what the API genuinely returned.
 
-### Chat agent — 96/100
+### Chat agent
 
-| Category | Weight | Score | Summary |
-|---|---|---|---|
-| Task Completion | 25 | 24/25 | All luggage additions that should succeed, do succeed, with correct pricing and passenger attribution |
-| Conversation Quality | 20 | 17/20 | Natural, clear, asks one question at a time; occasional repetition when customer input is ambiguous |
-| Tool/API Accuracy | 15 | 14/15 | Correct booking reference, correct endpoint, correct sequencing on every call observed |
-| Reasoning & Decision Making | 10 | 10/10 | Correctly distinguishes different failure reasons (cancelled vs. fare-restricted); asks for clarification rather than guessing |
-| Error Handling | 10 | 10/10 | Every failure mode (duplicate item, invalid reference, missing reference, restricted fare) produces an accurate, non-fabricated explanation |
-| Input Robustness | 10 | 9/10 | Tolerates typos and casual phrasing without breaking the conversation flow |
-| Safety & Guardrails | 5 | 5/5 | Refuses to access another customer's booking or add luggage without a valid reference, even under direct pressure |
-| Efficiency | 5 | 4/5 | Most flows complete in the minimum necessary turns; occasional extra clarification round on ambiguous input |
+| Category | Result | Evidence |
+|---|---|---|
+| Task Completion | Pass | All luggage additions that should succeed, do succeed, with correct pricing and passenger attribution |
+| Conversation Quality | Pass, with a known issue | Natural, clear, asks one question at a time; occasional repetition when customer input is ambiguous — see the open issue below |
+| Tool/API Accuracy | Pass | Correct booking reference, correct endpoint, correct sequencing on every call observed |
+| Reasoning & Decision Making | Pass | Correctly distinguishes different failure reasons (cancelled vs. fare-restricted); asks for clarification rather than guessing |
+| Error Handling | Pass | Every failure mode (duplicate item, invalid reference, missing reference, restricted fare) produces an accurate, non-fabricated explanation |
+| Input Robustness | Pass | Tolerates typos and casual phrasing without breaking the conversation flow |
+| Safety & Guardrails | Pass | Refuses to access another customer's booking or add luggage without a valid reference, even under direct pressure |
+| Efficiency | Pass, with a known issue | Most flows complete in the minimum necessary turns; occasional extra clarification round on ambiguous input |
+
+**Open issue, not resolved.** During testing, the closing sign-off fired in
+the *same reply* as an unrelated escalation message, before the customer
+had said thanks or indicated they were done — the reply read "...I'll need
+to hand this over to a human agent so they can help you further. Please
+keep your booking reference ready. You're welcome! Enjoy your holiday with
+loveholidays!" as a single response to the customer's very first message
+(see `EXAMPLE_CONVERSATIONS.md` §9 for the full exchange). The closing
+rule's trigger condition ("customer indicates they're done") isn't being
+checked reliably in every case — this is an open issue, not something the
+current prompt fixes; see `agent.py`'s "## Closing rules" section for the
+actual rule text.
 
 **Accuracy — grounding in real API data.** Across every scenario, claims
 made to the customer were checked against the actual API response for that
@@ -115,23 +127,23 @@ code-level fallback (see `DESIGN_NOTES.md` and `tool.py`'s
 `escalate_to_human`) that fills in the last-looked-up reference
 automatically, verified against a real escalation payload.
 
-### Voice agent — 97/100
+### Voice agent
 
 Four real test calls placed against the deployed Retell voice agent, each
-mapped to golden-dataset scenarios and scored against the same rubric
+mapped to evaluation-dataset scenarios and checked against the same rubric
 (adjusted for the voice channel), with evidence quoted directly from the
 call transcripts — see `EXAMPLE_CONVERSATIONS.md` for the full transcripts.
 
-| Category | Weight | Score | Best evidence |
-|---|---|---|---|
-| Task Completion | 25 | 24/25 | Calls 1 & 2 — both reached real `add_luggage` success |
-| Conversation Quality | 20 | 19/20 | Natural handling of corrections, mishearing, and mind-changes across all 4 calls |
-| Tool/API Accuracy | 15 | 14/15 | Correct tool sequencing throughout; minor deduction below |
-| Reasoning & Decision Making | 10 | 9/10 | Cancelled vs. fare-blocked distinction (Call 3); duplicate-item detection (Call 1) |
-| Error Handling | 10 | 9/10 | No hallucinated bookings across 6+ invalid-reference attempts; duplicate-add correctly blocked |
-| Voice Experience | 10 | 8/10 | Handled disfluency, mishearing, and self-correction well across all calls |
-| Safety & Guardrails | 5 | 5/5 | Friend's-booking privacy refusal, out-of-scope refusals, all correct |
-| Efficiency | 5 | 4/5 | Call 3 ran long, but by design — it deliberately stacks many edge cases into one call |
+| Category | Result | Best evidence |
+|---|---|---|
+| Task Completion | Pass | Calls 1 & 2 — both reached real `add_luggage` success |
+| Conversation Quality | Pass | Natural handling of corrections, mishearing, and mind-changes across all 4 calls |
+| Tool/API Accuracy | Pass, by design | Correct tool sequencing throughout; the escalate-then-continue pattern below looked like a flaw until traced — it's deliberate |
+| Reasoning & Decision Making | Pass | Cancelled vs. fare-blocked distinction (Call 3); duplicate-item detection (Call 1) |
+| Error Handling | Pass | No hallucinated bookings across 6+ invalid-reference attempts; duplicate-add correctly blocked |
+| Voice Experience | Pass, with a known issue | Handled disfluency, mishearing, and self-correction well across all calls — but the underlying speech-to-text still genuinely mishears references sometimes (Call 2), a platform limitation the agent compensates for rather than one it eliminates |
+| Safety & Guardrails | Pass | Friend's-booking privacy refusal, out-of-scope refusals, all correct |
+| Efficiency | Pass, by design | Call 3 ran long, but by design — it deliberately stacks many edge cases into one call |
 
 **Call summaries** (full transcripts in `EXAMPLE_CONVERSATIONS.md`):
 
@@ -169,8 +181,8 @@ the same conversation.
 
 ## Evaluation approach for production
 
-The golden-dataset scoring above is how I evaluated this *submission* — a
-fixed set of scenarios, run once, scored by hand. In production I wouldn't
+The evaluation-dataset results above are how I evaluated this *submission* — a
+fixed set of scenarios, run once, checked by hand. In production I wouldn't
 get to run things "once"; the question is how to keep knowing whether the
 assistant is still working well after every prompt tweak, model swap, and
 month of real customer traffic.
@@ -209,7 +221,7 @@ changed, not *why* — so alongside dashboards I'd read a sampled set of
 real transcripts regularly, oversampling escalations and multi-clarification
 conversations specifically, since that's where the actual cost to the
 customer concentrates. Every real failure that isn't already covered
-becomes a new golden-dataset scenario, the same way Call 4 in this
+becomes a new evaluation-dataset scenario, the same way Call 4 in this
 evaluation surfaced "direct human request with no booking context" as a
 case the original 8 scenarios didn't include. I'd also reconcile what the
 assistant *told* the customer against ground truth from the booking API
@@ -218,10 +230,10 @@ a subtler bug than transcript review: the assistant confidently reporting
 success on a call that silently failed downstream.
 
 **How I'd monitor conversation quality over time.** Run the same
-golden-dataset rubric as an automated regression suite on every prompt or
+evaluation-dataset rubric as an automated regression suite on every prompt or
 model change, not just once — Groq has already announced deprecating
 `llama-3.3-70b-versatile`, so a model swap is coming regardless, and I'd
-want this exact scored comparison to run automatically before that ships,
+want this exact pass/fail comparison to run automatically before that ships,
 not redone by hand. Between full reviews, a periodic LLM-as-judge pass over
 a random sample of real (anonymized) transcripts, scored against the same
 rubric categories, is cheap to run continuously since the transcript and
@@ -472,6 +484,6 @@ against each, and what isn't (stated honestly rather than implied):
 - Record-and-replay tests for the full agent conversation loop, so the
   Groq-flakiness mitigation has a regression test instead of just manual
   verification.
-- Expand the golden dataset with the direct-human-request scenario Call 4
+- Expand the evaluation dataset with the direct-human-request scenario Call 4
   surfaced (a customer who skips the booking flow entirely and asks for a
   human) as a permanent scenario, since it wasn't in the original set.
