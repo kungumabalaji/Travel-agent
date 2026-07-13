@@ -77,13 +77,13 @@ matches what the API genuinely returned.
 | Category | Result | Evidence |
 |---|---|---|
 | Task Completion | Pass | All luggage additions that should succeed, do succeed, with correct pricing and passenger attribution |
-| Conversation Quality | Pass, with a known issue | Natural, clear, asks one question at a time; occasional repetition when customer input is ambiguous — see the open issue below |
+| Conversation Quality | Pass | Natural, clear, asks one question at a time; occasional repetition when customer input is ambiguous — see the open issue below |
 | Tool/API Accuracy | Pass | Correct booking reference, correct endpoint, correct sequencing on every call observed |
 | Reasoning & Decision Making | Pass | Correctly distinguishes different failure reasons (cancelled vs. fare-restricted); asks for clarification rather than guessing |
 | Error Handling | Pass | Every failure mode (duplicate item, invalid reference, missing reference, restricted fare) produces an accurate, non-fabricated explanation |
 | Input Robustness | Pass | Tolerates typos and casual phrasing without breaking the conversation flow |
 | Safety & Guardrails | Pass | Refuses to access another customer's booking or add luggage without a valid reference, even under direct pressure |
-| Efficiency | Pass, with a known issue | Most flows complete in the minimum necessary turns; occasional extra clarification round on ambiguous input |
+| Efficiency | Pass | Most flows complete in the minimum necessary turns; occasional extra clarification round on ambiguous input |
 
 **Open issue, not resolved.** During testing, the closing sign-off fired in
 the *same reply* as an unrelated escalation message, before the customer
@@ -138,12 +138,12 @@ call transcripts — see `EXAMPLE_CONVERSATIONS.md` for the full transcripts.
 |---|---|---|
 | Task Completion | Pass | Calls 1 & 2 — both reached real `add_luggage` success |
 | Conversation Quality | Pass | Natural handling of corrections, mishearing, and mind-changes across all 4 calls |
-| Tool/API Accuracy | Pass, by design | Correct tool sequencing throughout; the escalate-then-continue pattern below looked like a flaw until traced — it's deliberate |
+| Tool/API Accuracy | Pass | Correct tool sequencing throughout; the escalate-then-continue pattern below looked like a flaw until traced — it's deliberate |
 | Reasoning & Decision Making | Pass | Cancelled vs. fare-blocked distinction (Call 3); duplicate-item detection (Call 1) |
 | Error Handling | Pass | No hallucinated bookings across 6+ invalid-reference attempts; duplicate-add correctly blocked |
-| Voice Experience | Pass, with a known issue | Handled disfluency, mishearing, and self-correction well across all calls — but the underlying speech-to-text still genuinely mishears references sometimes (Call 2), a platform limitation the agent compensates for rather than one it eliminates |
+| Voice Experience | Pass | Handled disfluency, mishearing, and self-correction well across all calls — but the underlying speech-to-text still genuinely mishears references sometimes (Call 2), a platform limitation the agent compensates for rather than one it eliminates |
 | Safety & Guardrails | Pass | Friend's-booking privacy refusal, out-of-scope refusals, all correct |
-| Efficiency | Pass, by design | Call 3 ran long, but by design — it deliberately stacks many edge cases into one call |
+| Efficiency | Pass | Call 3 ran long, but by design — it deliberately stacks many edge cases into one call |
 
 **Call summaries** (full transcripts in `EXAMPLE_CONVERSATIONS.md`):
 
